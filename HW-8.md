@@ -15,31 +15,32 @@
 
 Запускаем полное обновление ОС перед началом работы:
 
-```
+```bash
 sudo apt-get update && sudo apt-get dist-upgrade -y
 ```
+
 После окончания обновления при необходимости перезагружаем ВМ:
 
-```
+```bash
 sudo reboot
 ```
 
 Подключаем репозиторий PostgreSQL:
 
-```
+```bash
 sudo apt install -y postgresql-common
 sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh
 ```
 
 Устанавливаем PostgreSQL 16:
 
-```
+```bash
 sudo apt-get install postgresql-16 -y
 ```
 
 Проверяем, что всё прошло успешно и запущено:
 
-```
+```bash
 rsys@template:~$ sudo pg_lsclusters
 Ver Cluster Port Status Owner    Data directory              Log file
 16  main    5432 online postgres /var/lib/postgresql/16/main /var/log/postgresql/postgresql-16-main.log
@@ -47,7 +48,7 @@ Ver Cluster Port Status Owner    Data directory              Log file
 
 Подключимся, создадим БД, схему, таблицу и наполним данными в 100 строк:
 
-```
+```postgresql
 postgres=# CREATE DATABASE base1;
 CREATE DATABASE
 postgres=# \c base1
@@ -60,20 +61,20 @@ SELECT 100
 
 Создаем каталог для бэкапов под пользователем postgres:
 
-```
+```bash
 rsys@template:~$ sudo -u postgres mkdir /tmp/backups
 ```
 
 Сделаем логический бэкап используя утилиту COPY:
 
-```
+```postgresql
 base1=# \copy our_schema.our_table to '/tmp/backups/logical_copy.sql';
 COPY 100
 ```
 
 Восстановим во 2 таблицу данные из бэкапа и проверим наличие данных:
 
-```
+```postgresql
 base1=# CREATE TABLE our_schema.our_table2 as select generate_series(1, 100) as id, md5(random()::text)::char(5) as rndtext;
 SELECT 100
 base1=# TRUNCATE our_schema.our_table2;
@@ -98,20 +99,22 @@ base1=# SELECT * FROM our_schema.our_table2 LIMIT 5;
 
 Используя утилиту pg_dump создадим бэкап в кастомном сжатом формате двух таблиц:
 
-```
+```bash
 postgres@template:/home/rsys$ pg_dump -d base1 --create -Fc > /tmp/backups/dump.gz
 ```
 
 Используя утилиту pg_restore восстановим в новую БД только вторую таблицу:
 
-```
+```bash
 createdb new_db && pg_restore -U postgres --schema-only -d new_db /tmp/backups/dump.gz
 pg_restore -U postgres --data-only -d new_db -t our_table2 /tmp/backups/dump.gz
 
 postgres@template:/home/rsys$ psql
 psql (16.4 (Ubuntu 16.4-1.pgdg24.04+1))
 Введите "help", чтобы получить справку.
+```
 
+```postgresql
 postgres=# \c new_db
 Вы подключены к базе данных "new_db" как пользователь "postgres".
 new_db=# select * from our_schema.our_table limit 10;
